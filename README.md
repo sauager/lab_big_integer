@@ -4,7 +4,7 @@
 
 | Field     | Value               |
 |-----------|---------------------|
-| **Name**  | _Abdulmutalimov Nasib_          |
+| **Name**  | _Абдулмуталимов Насиб_          |
 | **Group** | _РПОиПИИ_            |
 
 > **Replace the data above with your own!**
