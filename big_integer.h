@@ -73,4 +73,10 @@ private:
 
     std::vector<int> digits_;  // digits (least significant first)
     bool negative_ = false;    // true if the number is negative
+    long long mod(long long a, long long b) const;
+    void absSum(const BigInteger& other);
+    void absSub(const BigInteger& other);
+    void absMul(const BigInteger& other);
+    void absDiv(const BigInteger& other);
+    BigInteger abs() const;
 };
