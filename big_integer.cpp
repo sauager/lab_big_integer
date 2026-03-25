@@ -4,8 +4,7 @@
 #include <stdexcept>
 
 long long BigInteger::mod(long long x, long long y) const {
-    long long r = x % y;
-    return (r < 0) ? r + y : r;
+    return ((x % y) + y) % y;
 }
 
 BigInteger::BigInteger() : negative_(false) {
@@ -13,19 +12,19 @@ BigInteger::BigInteger() : negative_(false) {
 }
 
 BigInteger::BigInteger(int value) : negative_(value < 0) {
-    long long v = std::abs((long long)value);
+    long long num = std::abs((long long)value);
     do {
-        digits_.push_back(mod(v, 10));
-        v /= 10;
-    } while (v > 0);
+        digits_.push_back(mod(num, 10));
+        num /= 10;
+    } while (num > 0);
 }
 
 BigInteger::BigInteger(long long value) : negative_(value < 0) {
-    long long v = std::abs(value);
+    long long num = std::abs(value);
     do {
-        digits_.push_back(mod(v, 10));
-        v /= 10;
-    } while (v > 0);
+        digits_.push_back(mod(num, 10));
+        num /= 10;
+    } while (num > 0);
 }
 
 BigInteger::BigInteger(const std::string& str) : negative_(false) {
@@ -40,8 +39,8 @@ BigInteger::BigInteger(const std::string& str) : negative_(false) {
         ++pos;
     }
 
-    for (size_t i = str.size(); i-- > pos;) {
-        digits_.push_back(str[i] - '0');
+    for (size_t i = str.size(); i > pos; --i) {
+        digits_.push_back(str[i - 1] - '0');
     }
 }
 
@@ -53,7 +52,6 @@ std::ostream& operator<<(std::ostream& os, const BigInteger& val) {
     if (val.negative_ && !val.is_zero()) {
         os << '-';
     }
-
     for (int i = (int)val.digits_.size() - 1; i >= 0; --i) {
         os << val.digits_[i];
     }
@@ -62,37 +60,37 @@ std::ostream& operator<<(std::ostream& os, const BigInteger& val) {
 
 std::istream& operator>>(std::istream& is, BigInteger& val) {
     val.digits_.clear();
-    std::string s;
-
-    if (!(is >> s)) return is;
-
+    std::string input;
     size_t pos = 0;
+
+    if (!(is >> input)) return is;
+
     val.negative_ = false;
 
-    if (s[0] == '-') {
+    if (input[0] == '-') {
         val.negative_ = true;
         ++pos;
-    } else if (s[0] == '+') {
+    } else if (input[0] == '+') {
         ++pos;
     }
 
-    while (pos < s.size() - 1 && s[pos] == '0') {
+    while (pos < input.size() - 1 && input[pos] == '0') {
         ++pos;
     }
 
-    for (size_t i = s.size(); i-- > pos;) {
-        val.digits_.push_back(s[i] - '0');
+    for (size_t i = input.size(); i > pos; --i) {
+        val.digits_.push_back(input[i - 1] - '0');
     }
 
     return is;
 }
 
 BigInteger BigInteger::operator-() const {
-    BigInteger res = *this;
-    if (!res.is_zero()) {
-        res.negative_ = !res.negative_;
+    BigInteger tmp = *this;
+    if (!tmp.is_zero()) {
+        tmp.negative_ = !tmp.negative_;
     }
-    return res;
+    return tmp;
 }
 
 bool BigInteger::operator<(const BigInteger& rhs) const {
@@ -123,43 +121,45 @@ bool BigInteger::operator==(const BigInteger& rhs) const { return !(*this < rhs 
 bool BigInteger::operator!=(const BigInteger& rhs) const { return !(*this == rhs); }
 
 void BigInteger::absSum(const BigInteger& other) {
-    size_t n = std::max(digits_.size(), other.digits_.size());
+    size_t max_len = std::max(digits_.size(), other.digits_.size());
     int carry = 0;
 
-    for (size_t i = 0; i < n || carry; ++i) {
-        if (i == digits_.size()) {
-            digits_.push_back(0);
+    for (size_t i = 0; i < max_len; ++i) {
+        int d1 = (i < digits_.size() ? digits_[i] : 0);
+        int d2 = (i < other.digits_.size() ? other.digits_[i] : 0);
+
+        if (i < digits_.size()) {
+            digits_[i] = mod(d1 + d2 + carry, 10);
+        } else {
+            digits_.push_back(mod(d1 + d2 + carry, 10));
         }
 
-        int a = digits_[i];
-        int b = (i < other.digits_.size() ? other.digits_[i] : 0);
-
-        int sum = a + b + carry;
-        digits_[i] = sum % 10;
-        carry = sum / 10;
+        carry = (d1 + d2 + carry) / 10;
     }
+
+    if (carry) digits_.push_back(1);
 }
 
 void BigInteger::absSub(const BigInteger& other) {
+    size_t max_len = std::max(digits_.size(), other.digits_.size());
     int borrow = 0;
 
-    for (size_t i = 0; i < digits_.size(); ++i) {
-        int a = digits_[i];
-        int b = (i < other.digits_.size() ? other.digits_[i] : 0);
+    for (size_t i = 0; i < max_len; ++i) {
+        int d1 = (i < digits_.size() ? digits_[i] : 0);
+        int d2 = (i < other.digits_.size() ? other.digits_[i] : 0);
 
-        int cur = a - b - borrow;
-        if (cur < 0) {
-            cur += 10;
-            borrow = 1;
+        if (i < digits_.size()) {
+            digits_[i] = mod(d1 - d2 - borrow, 10);
         } else {
-            borrow = 0;
+            digits_.push_back(mod(d1 - d2 - borrow, 10));
         }
 
-        digits_[i] = cur;
+        borrow = (d1 - d2 - borrow) < 0;
     }
 
-    while (digits_.size() > 1 && digits_.back() == 0) {
-        digits_.pop_back();
+    for (int i = (int)digits_.size() - 1; i > 0; --i) {
+        if (digits_[i] == 0) digits_.pop_back();
+        else break;
     }
 }
 
@@ -169,19 +169,21 @@ void BigInteger::absMul(const BigInteger& other) {
         return;
     }
 
-    std::vector<int> result(digits_.size() + other.digits_.size(), 0);
+    int len1 = digits_.size();
+    int len2 = other.digits_.size();
+    std::vector<int> result(len1 + len2, 0);
 
-    for (size_t i = 0; i < digits_.size(); ++i) {
-        int carry = 0;
+    for (int i = 0; i < len1; ++i) {
+        long long carry = 0;
 
-        for (size_t j = 0; j < other.digits_.size() || carry; ++j) {
+        for (int j = 0; j < len2 || carry > 0; ++j) {
             long long cur = result[i + j] + carry;
 
-            if (j < other.digits_.size()) {
+            if (j < len2) {
                 cur += 1LL * digits_[i] * other.digits_[j];
             }
 
-            result[i + j] = cur % 10;
+            result[i + j] = (int)(cur % 10);
             carry = cur / 10;
         }
     }
@@ -194,31 +196,29 @@ void BigInteger::absMul(const BigInteger& other) {
 }
 
 void BigInteger::absDiv(const BigInteger& other) {
-    if (other.is_zero()) {
-        throw std::invalid_argument("Division by zero");
-    }
+    if (other.is_zero()) throw std::invalid_argument("Division by zero");
 
     int n = digits_.size();
     std::vector<int> result(n, 0);
-    BigInteger rem("0");
+    BigInteger remainder("0");
 
     for (int i = n - 1; i >= 0; --i) {
-        rem.digits_.insert(rem.digits_.begin(), digits_[i]);
+        remainder.digits_.insert(remainder.digits_.begin(), digits_[i]);
 
-        while (rem.digits_.size() > 1 && rem.digits_.back() == 0) {
-            rem.digits_.pop_back();
+        while (remainder.digits_.size() > 1 && remainder.digits_.back() == 0) {
+            remainder.digits_.pop_back();
         }
 
-        int q = 0;
-        BigInteger temp = rem;
+        int digit = 0;
+        BigInteger temp = remainder;
 
         while (!(temp.abs() < other.abs())) {
             temp.absSub(other);
-            ++q;
+            ++digit;
         }
 
-        rem = temp;
-        result[i] = q;
+        remainder = temp;
+        result[i] = digit;
     }
 
     while (result.size() > 1 && result.back() == 0) {
@@ -231,21 +231,16 @@ void BigInteger::absDiv(const BigInteger& other) {
 BigInteger& BigInteger::operator+=(const BigInteger& rhs) {
     if (negative_ == rhs.negative_) {
         absSum(rhs);
+    } else if (abs() < rhs.abs()) {
+        BigInteger tmp = rhs;
+        std::swap(*this, tmp);
+        absSub(tmp);
+        negative_ = rhs.negative_;
     } else {
-        if (abs() < rhs.abs()) {
-            BigInteger tmp = rhs;
-            std::swap(*this, tmp);
-            absSub(tmp);
-            negative_ = rhs.negative_;
-        } else {
-            absSub(rhs);
-        }
+        absSub(rhs);
     }
 
-    if (is_zero()) {
-        negative_ = false;
-    }
-
+    if (is_zero()) negative_ = false;
     return *this;
 }
 
@@ -268,20 +263,14 @@ BigInteger& BigInteger::operator/=(const BigInteger& rhs) {
     absDiv(rhs);
     negative_ = (negative_ != rhs.negative_);
 
-    if (is_zero()) {
-        negative_ = false;
-    }
-
+    if (is_zero()) negative_ = false;
     return *this;
 }
 
 BigInteger& BigInteger::operator%=(const BigInteger& rhs) {
     *this = *this - (*this / rhs) * rhs;
 
-    if (is_zero()) {
-        negative_ = false;
-    }
-
+    if (is_zero()) negative_ = false;
     return *this;
 }
 
@@ -297,9 +286,9 @@ BigInteger& BigInteger::operator--() { return *this -= BigInteger(1); }
 BigInteger BigInteger::operator--(int) { BigInteger tmp = *this; --(*this); return tmp; }
 
 BigInteger BigInteger::abs() const {
-    BigInteger res = *this;
-    res.negative_ = false;
-    return res;
+    BigInteger tmp = *this;
+    tmp.negative_ = false;
+    return tmp;
 }
 
 bool BigInteger::is_zero() const {
@@ -307,17 +296,15 @@ bool BigInteger::is_zero() const {
 }
 
 std::string BigInteger::to_string() const {
-    std::string s;
+    std::string res;
 
-    if (negative_ && !is_zero()) {
-        s += '-';
-    }
+    if (negative_ && !is_zero()) res += "-";
 
     for (int i = (int)digits_.size() - 1; i >= 0; --i) {
-        s += char(digits_[i] + '0');
+        res += char(digits_[i] + '0');
     }
 
-    return s;
+    return res;
 }
 
 BigInteger::operator bool() const {
